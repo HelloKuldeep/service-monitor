@@ -40,7 +40,7 @@ func (m *StreamsDAO) FindAll() ([]model.Stream, error) {
 
 // Find list of output
 func (m *StreamsDAO) FindOutput(input model.Input) ([]model.Output, error) {
-	var streams model.Stream //Use
+	// var streams model.Stream //Use
 
 	// err := db.C(COLLECTION).Find(bson.M{"hittime": bson.M{"$gte": input.StartTime, "$lte": input.EndTime}}).All(&streams)
 	
@@ -70,59 +70,65 @@ func (m *StreamsDAO) FindOutput(input model.Input) ([]model.Output, error) {
 	// 	outputs = append(outputs, output)
 	// }
 	var err error
-	// var chanNumber int = (input.EndTime-input.StartTime)/60
-	// outputC : make(chan []model.Output, )
+	var chanNumber int = (input.EndTime - input.StartTime)/60
+	// quit := make(chan int)
+	outputChan := make(chan model.Output, chanNumber)
 	for i := input.StartTime; i < input.EndTime ;i = i+(slider*60) {
-		iter := db.C(COLLECTION).Find(bson.M{"hittime": bson.M{"$gte": i, "$lt": i+(slider*60)}}).Iter()
-		var minVal, maxVal, total, count int = MAXINT, MININT, 0, 0
-		for iter.Next(&streams) {
-			if maxVal < streams.ResponseTime {
-				maxVal = streams.ResponseTime
-			}
-			if minVal > streams.ResponseTime {
-				minVal = streams.ResponseTime
-			}
-			total += streams.ResponseTime
-			count ++;
+		// iter := db.C(COLLECTION).Find(bson.M{"hittime": bson.M{"$gte": i, "$lt": i+(slider*60)}}).Iter()
+		// var minVal, maxVal, total, count int = MAXINT, MININT, 0, 0
+		// for iter.Next(&streams) {
+		// 	if maxVal < streams.ResponseTime {
+		// 		maxVal = streams.ResponseTime
+		// 	}
+		// 	if minVal > streams.ResponseTime {
+		// 		minVal = streams.ResponseTime
+		// 	}
+		// 	total += streams.ResponseTime
+		// 	count ++;
+		// }
+		// if err = iter.Close(); err != nil {
+		// 	break
+		// }
+		// if count > 0 {
+		// 	output := model.Output{Time: i, MinResponseTime: minVal, MaxResponseTime: maxVal, AverageThroughPut: total/count}
+		// 	outputs = append(outputs, output)
+		// }
+		go ForEachSlide(i, outputChan)
+		for outputC := range outputChan {
+			outputs = append(outputs, outputC)
 		}
-		if err = iter.Close(); err != nil {
-			break
-		}
-		if count > 0 {
-			output := model.Output{Time: i, MinResponseTime: minVal, MaxResponseTime: maxVal, AverageThroughPut: total/count}
-			outputs = append(outputs, output)
-		}
-		// outputs = go ForEachSlide(i)
 	}
 	return outputs, err
 }
 
-// func ForEachSlide(i int) ([]model.Output, error) {
-// 	var streams model.Stream
-// 	slider := SLIDE
-// 	var err error
-// 	outputs := []model.Output{}
-// 	iter := db.C(COLLECTION).Find(bson.M{"hittime": bson.M{"$gte": i, "$lt": i+(slider*60)}}).Iter()
-// 	var minVal, maxVal, total, count int = MAXINT, MININT, 0, 0
-// 	for iter.Next(&streams) {
-// 		if maxVal < streams.ResponseTime {
-// 			maxVal = streams.ResponseTime
-// 		}
-// 		if minVal > streams.ResponseTime {
-// 			minVal = streams.ResponseTime
-// 		}
-// 		total += streams.ResponseTime
-// 		count ++;
-// 	}
-// 	if err = iter.Close(); err != nil {
-// 		return outputs, err
-// 	}
-// 	if count > 0 {
-// 		output := model.Output{Time: i, MinResponseTime: minVal, MaxResponseTime: maxVal, AverageThroughPut: total/count}
-// 		outputs = append(outputs, output)
-// 	}
-// 	return outputs, err
-// }
+func ForEachSlide(i int, outputChan chan model.Output) {
+	var streams model.Stream
+	slider := SLIDE
+	var err error
+	// outputs := []model.Output{}
+	iter := db.C(COLLECTION).Find(bson.M{"hittime": bson.M{"$gte": i, "$lt": i+(slider*60)}}).Iter()
+	var minVal, maxVal, total, count int = MAXINT, MININT, 0, 0
+	for iter.Next(&streams) {
+		if maxVal < streams.ResponseTime {
+			maxVal = streams.ResponseTime
+		}
+		if minVal > streams.ResponseTime {
+			minVal = streams.ResponseTime
+		}
+		total += streams.ResponseTime
+		count ++;
+	}
+	if err = iter.Close(); err != nil {
+		return
+	}
+	var output model.Output
+	if count > 0 {
+		output = model.Output{Time: i, MinResponseTime: minVal, MaxResponseTime: maxVal, AverageThroughPut: total/count}
+		// outputs = append(outputs, output)
+	}
+	outputChan <- output
+	close(outputChan)
+}
 
 // Insert a stream into database
 func (m *StreamsDAO) Insert(stream model.Stream) error {
