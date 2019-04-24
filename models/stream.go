@@ -21,5 +21,5 @@ type Output struct {
 	// Window		int        `bson:"window" json:"window"`
 	MinResponseTime		int        `bson:"minresponsetime" json:"minresponsetime"`
 	MaxResponseTime		int        `bson:"maxresponsetime" json:"maxresponsetime"`
-	AverageThroughPut		int        `bson:"averagethroughput" json:"averagethroughput"`
+	AverageResponseTime		int        `bson:"averageresponsetime" json:"averageresponsetime"`
 }

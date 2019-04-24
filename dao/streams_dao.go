@@ -64,14 +64,14 @@ func (m *StreamsDAO) FindOutput(input model.Input) ([]model.Output, error) {
 			break
 		}
 		if count > 0 {
-			output := model.Output{Time: i, MinResponseTime: minVal, MaxResponseTime: maxVal, AverageThroughPut: total/count}
+			output := model.Output{Time: i, MinResponseTime: minVal, MaxResponseTime: maxVal, AverageResponseTime: total/count}
 			outputs = append(outputs, output)
 		}
 		// go ForEachSlide(i, outputChan)
-		// for outputC := range outputChan {
-		// 	outputs = append(outputs, outputC)
-		// }
 	}
+	// for outputC := range outputChan {
+	// 	outputs = append(outputs, outputC)
+	// }
 	return outputs, err
 }
 
