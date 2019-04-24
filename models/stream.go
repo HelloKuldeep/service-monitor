@@ -9,11 +9,13 @@ type Stream struct {
 	ResponseTime	int        `bson:"responsetime" json:"responsetime"`
 }
 
+// Represents a Incoming Data
 type Input struct {
 	StartTime	int        `bson:"starttime" json:"starttime"`
 	EndTime		int        `bson:"endtime" json:"endtime"`
 }
 
+// Represents a Response
 type Output struct {
 	Time	int        `bson:"starttime" json:"starttime"`
 	// Window		int        `bson:"window" json:"window"`
