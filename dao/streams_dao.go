@@ -109,31 +109,87 @@ func (m *StreamsDAO) FindOutput1Min(input model.Input) ([]model.Output, error) {
 	// fmt.Println(input.StartTime, newStartTime, input.EndTime, newEndTime, totalError)
 	fmt.Println("Each Window Min: ", slider)
 	fmt.Println("Error: ", totalError)
+	// var chanNumber int = (input.EndTime - input.StartTime)/(slider*60)
+    done := make(chan bool)
+	outputChan := make(chan model.Output)
 	for i := newStartTime; i < newEndTime; i = i + (slider * 60) {
-		iter := db.C(COLLECTION).Find(bson.M{"hittime": bson.M{"$gte": i, "$lt": i+(slider*60)}}).Iter()
-		var minVal, maxVal, total, count int = MAXINT, MININT, 0, 0
-		for iter.Next(&streams) {
-			if maxVal < streams.ResponseTime {
-				maxVal = streams.ResponseTime
+		go func() {
+			iter := db.C(COLLECTION).Find(bson.M{"hittime": bson.M{"$gte": i, "$lt": i+(slider*60)}}).Iter()
+			var minVal, maxVal, total, count int = MAXINT, MININT, 0, 0
+			for iter.Next(&streams) {
+				if maxVal < streams.ResponseTime {
+					maxVal = streams.ResponseTime
+				}
+				if minVal > streams.ResponseTime {
+					minVal = streams.ResponseTime
+				}
+				total += streams.ResponseTime
+				count ++;
 			}
-			if minVal > streams.ResponseTime {
-				minVal = streams.ResponseTime
+			if err = iter.Close(); err != nil {
+				return
 			}
-			total += streams.ResponseTime
-			count ++;
+			var output model.Output
+			if count > 0 {
+				output = model.Output{Time: i, MinResponseTime: minVal, MaxResponseTime: maxVal, AverageResponseTime: total/count}
+				// outputs = append(outputs, output)
+			} else {
+				output = model.Output{Time: i, MinResponseTime: 0, MaxResponseTime: 0, AverageResponseTime: 0}
+				// outputs = append(outputs, output)
+			}
+			// fmt.Println(output)
+			outputChan <- output
+			done <- true
+		}()
+
+		// go ForEachSlide(i, slider, outputChan)
+		// for outputC := range outputChan {
+		// 	fmt.Println("First", outputC)
+		// 	outputs = append(outputs, outputC)
+		// }
+	}
+	go func() {
+		for outputC := range outputChan {
+			// fmt.Println("First", outputC)
+			outputs = append(outputs, outputC)
 		}
-		if err = iter.Close(); err != nil {
-			break
-		}
-		if count > 0 {
-			output := model.Output{Time: i, MinResponseTime: minVal, MaxResponseTime: maxVal, AverageResponseTime: total/count}
-			outputs = append(outputs, output)
-		} else {
-			output := model.Output{Time: i, MinResponseTime: 0, MaxResponseTime: 0, AverageResponseTime: 0}
-			outputs = append(outputs, output)
-		}
+	}()
+	for i := newStartTime; i < newEndTime; i = i + (slider * 60) {
+		<- done
 	}
 	return outputs, err
+}
+
+// Method for requesting handeling using goroutine and channels
+func ForEachSlide(i int, slider int, outputChan chan model.Output) {
+	var streams model.Stream
+	var err error
+	iter := db.C(COLLECTION).Find(bson.M{"hittime": bson.M{"$gte": i, "$lt": i + (slider * 60)}}).Iter()
+	var minVal, maxVal, total, count int = MAXINT, MININT, 0, 0
+	for iter.Next(&streams) {
+		if maxVal < streams.ResponseTime {
+			maxVal = streams.ResponseTime
+		}
+		if minVal > streams.ResponseTime {
+			minVal = streams.ResponseTime
+		}
+		total += streams.ResponseTime
+		count++
+	}
+	if err = iter.Close(); err != nil {
+		return
+	}
+	var output model.Output
+	if count > 0 {
+		output = model.Output{Time: i, MinResponseTime: minVal, MaxResponseTime: maxVal, AverageResponseTime: total / count}
+		// outputs = append(outputs, output)
+	} else {
+		output = model.Output{Time: i, MinResponseTime: 0, MaxResponseTime: 0, AverageResponseTime: 0}
+		// outputs = append(outputs, output)
+	}
+	fmt.Println("Inside ", output)
+	outputChan <- output
+	// close(outputChan)
 }
 
 // func writefile() {  
@@ -154,35 +210,4 @@ func (m *StreamsDAO) FindOutput1Min(input model.Input) ([]model.Output, error) {
 //         fmt.Println(err)
 //         return
 //     }
-// }
-
-
-// // Method for requesting handeling using goroutine and channels
-// func ForEachSlide(i int, outputChan chan model.Output) {
-// 	var streams model.Stream
-// 	slider := SLIDE
-// 	var err error
-// 	// outputs := []model.Output{}
-// 	iter := db.C(COLLECTION).Find(bson.M{"hittime": bson.M{"$gte": i, "$lt": i + (slider * 60)}}).Iter()
-// 	var minVal, maxVal, total, count int = MAXINT, MININT, 0, 0
-// 	for iter.Next(&streams) {
-// 		if maxVal < streams.ResponseTime {
-// 			maxVal = streams.ResponseTime
-// 		}
-// 		if minVal > streams.ResponseTime {
-// 			minVal = streams.ResponseTime
-// 		}
-// 		total += streams.ResponseTime
-// 		count++
-// 	}
-// 	if err = iter.Close(); err != nil {
-// 		return
-// 	}
-// 	var output model.Output
-// 	if count > 0 {
-// 		output = model.Output{Time: i, MinResponseTime: minVal, MaxResponseTime: maxVal, AverageResponseTime: total / count}
-// 		// outputs = append(outputs, output)
-// 	}
-// 	outputChan <- output
-// 	// close(outputChan)
 // }
