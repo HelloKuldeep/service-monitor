@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"sync"
 	"math"
 	"math/rand"
 	"fmt"
@@ -105,15 +106,17 @@ func (m *StreamsDAO) FindOutput1Min(input model.Input) ([]model.Output, error) {
 	} else {
 		sliderTemp := rand.Intn(100 - 15) + 15
 		slider = (newTimeDiff/sliderTemp)/60
+		// fmt.Println(sliderTemp)
 	}
 	// fmt.Println(input.StartTime, newStartTime, input.EndTime, newEndTime, totalError)
 	fmt.Println("Each Window Min: ", slider)
 	fmt.Println("Error: ", totalError)
-	// var chanNumber int = (input.EndTime - input.StartTime)/(slider*60)
-    done := make(chan bool)
 	outputChan := make(chan model.Output)
+	var wg sync.WaitGroup
+	wg.Add(int(math.Ceil(float64(newEndTime - newStartTime)/float64(60*slider))))
 	for i := newStartTime; i < newEndTime; i = i + (slider * 60) {
 		go func() {
+			defer wg.Done()
 			iter := db.C(COLLECTION).Find(bson.M{"hittime": bson.M{"$gte": i, "$lt": i+(slider*60)}}).Iter()
 			var minVal, maxVal, total, count int = MAXINT, MININT, 0, 0
 			for iter.Next(&streams) {
@@ -139,14 +142,8 @@ func (m *StreamsDAO) FindOutput1Min(input model.Input) ([]model.Output, error) {
 			}
 			// fmt.Println(output)
 			outputChan <- output
-			done <- true
+			// done <- true
 		}()
-
-		// go ForEachSlide(i, slider, outputChan)
-		// for outputC := range outputChan {
-		// 	fmt.Println("First", outputC)
-		// 	outputs = append(outputs, outputC)
-		// }
 	}
 	go func() {
 		for outputC := range outputChan {
@@ -154,43 +151,41 @@ func (m *StreamsDAO) FindOutput1Min(input model.Input) ([]model.Output, error) {
 			outputs = append(outputs, outputC)
 		}
 	}()
-	for i := newStartTime; i < newEndTime; i = i + (slider * 60) {
-		<- done
-	}
+	wg.Wait()
 	return outputs, err
 }
 
-// Method for requesting handeling using goroutine and channels
-func ForEachSlide(i int, slider int, outputChan chan model.Output) {
-	var streams model.Stream
-	var err error
-	iter := db.C(COLLECTION).Find(bson.M{"hittime": bson.M{"$gte": i, "$lt": i + (slider * 60)}}).Iter()
-	var minVal, maxVal, total, count int = MAXINT, MININT, 0, 0
-	for iter.Next(&streams) {
-		if maxVal < streams.ResponseTime {
-			maxVal = streams.ResponseTime
-		}
-		if minVal > streams.ResponseTime {
-			minVal = streams.ResponseTime
-		}
-		total += streams.ResponseTime
-		count++
-	}
-	if err = iter.Close(); err != nil {
-		return
-	}
-	var output model.Output
-	if count > 0 {
-		output = model.Output{Time: i, MinResponseTime: minVal, MaxResponseTime: maxVal, AverageResponseTime: total / count}
-		// outputs = append(outputs, output)
-	} else {
-		output = model.Output{Time: i, MinResponseTime: 0, MaxResponseTime: 0, AverageResponseTime: 0}
-		// outputs = append(outputs, output)
-	}
-	fmt.Println("Inside ", output)
-	outputChan <- output
-	// close(outputChan)
-}
+// // Method for requesting handeling using goroutine and channels
+// func ForEachSlide(i int, slider int, outputChan chan model.Output) {
+// 	var streams model.Stream
+// 	var err error
+// 	iter := db.C(COLLECTION).Find(bson.M{"hittime": bson.M{"$gte": i, "$lt": i + (slider * 60)}}).Iter()
+// 	var minVal, maxVal, total, count int = MAXINT, MININT, 0, 0
+// 	for iter.Next(&streams) {
+// 		if maxVal < streams.ResponseTime {
+// 			maxVal = streams.ResponseTime
+// 		}
+// 		if minVal > streams.ResponseTime {
+// 			minVal = streams.ResponseTime
+// 		}
+// 		total += streams.ResponseTime
+// 		count++
+// 	}
+// 	if err = iter.Close(); err != nil {
+// 		return
+// 	}
+// 	var output model.Output
+// 	if count > 0 {
+// 		output = model.Output{Time: i, MinResponseTime: minVal, MaxResponseTime: maxVal, AverageResponseTime: total / count}
+// 		// outputs = append(outputs, output)
+// 	} else {
+// 		output = model.Output{Time: i, MinResponseTime: 0, MaxResponseTime: 0, AverageResponseTime: 0}
+// 		// outputs = append(outputs, output)
+// 	}
+// 	fmt.Println("Inside ", output)
+// 	outputChan <- output
+// 	// close(outputChan)
+// }
 
 // func writefile() {  
 //     f, err := os.Create("test.txt")
