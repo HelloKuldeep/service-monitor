@@ -22,5 +22,5 @@ type Output struct {
 	MinResponseTime		int        `bson:"minresponsetime" json:"minresponsetime"`
 	MaxResponseTime		int        `bson:"maxresponsetime" json:"maxresponsetime"`
 	AverageResponseTime		int        `bson:"averageresponsetime" json:"averageresponsetime"`
-	MaxError	float64	`bson:"maxerror" json:"maxerror"`
+	// MaxError	float64	`bson:"maxerror" json:"maxerror"`
 }

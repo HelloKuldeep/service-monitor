@@ -60,7 +60,8 @@ func GetOutputEndPoint(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
-	responseoutput, err := dao.FindOutput(input)
+	// responseoutput, err := dao.FindOutput(input)
+	responseoutput, err := dao.FindOutput1Min(input)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
