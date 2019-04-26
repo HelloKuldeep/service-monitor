@@ -11,6 +11,13 @@ import (
 	. "service-monitor/config"
 	. "service-monitor/dao"
 	. "service-monitor/models"
+
+	// "github.com/gomodule/redigo/redis"
+	"service-monitor/api"
+)
+
+const (
+	apiPort = 3002
 )
 
 var config = Config{}
@@ -52,6 +59,31 @@ func CreateStreamEndPoint(w http.ResponseWriter, r *http.Request) {
 	respondWithJson(w, http.StatusCreated, stream)
 }
 
+// func CreateStreamEndPoint2(w http.ResponseWriter, r *http.Request, c redis.Conn) {
+// 	defer r.Body.Close()
+// 	var stream Stream
+// 	// dec := json.NewDecoder(r.Body)
+// 	// var v map[Stream]interface{}
+// 	if err := json.NewDecoder(r.Body).Decode(&stream); err != nil {
+// 	// if err := dec.Decode(&v); err != nil {
+// 		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+// 		return
+// 	}
+// 	// for val := range v {
+// 	// 	val.ID = bson.NewObjectId()
+// 	// 	if err := dao.Insert(val); err != nil {
+// 	// 		respondWithError(w, http.StatusInternalServerError, err.Error())
+// 	// 		return
+// 	// 	}
+// 	// }
+// 	stream.ID = bson.NewObjectId()
+// 	if err := dao.Insert(stream); err != nil {
+// 		respondWithError(w, http.StatusInternalServerError, err.Error())
+// 		return
+// 	}
+// 	respondWithJson(w, http.StatusCreated, stream)
+// }
+
 // GET Required Output
 func GetOutputEndPoint(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
@@ -91,6 +123,9 @@ func init() {
 
 // Define HTTP request routes
 func main() {
+	// To create connection for Redis
+	go api.Start(apiPort)
+
 	r := mux.NewRouter()
 	r.HandleFunc("/stream", AllStreamsEndPoint).Methods("GET")
 	r.HandleFunc("/stream", CreateStreamEndPoint).Methods("POST")
@@ -98,4 +133,31 @@ func main() {
 	if err := http.ListenAndServe(":3001", r); err != nil {
 		log.Fatal(err)
 	}
+
+	// // newPool returns a pointer to a redis.Pool
+	// pool := newPool()
+	// // get a connection from the pool (redis.Conn)
+	// conn := pool.Get()
+	// // use defer to close the connection when the function completes
+	// defer conn.Close()
+
+	// r.HandleFunc("/stream", CreateStreamEndPoint2(conn)).Methods("POST")
 }
+
+// func newPool() *redis.Pool {
+// 	return &redis.Pool{
+// 		// Maximum number of idle connections in the pool.
+// 		MaxIdle: 80,
+// 		// max number of connections
+// 		MaxActive: 12000,
+// 		// Dial is an application supplied function for creating and
+// 		// configuring a connection.
+// 		Dial: func() (redis.Conn, error) {
+// 			c, err := redis.Dial("tcp", ":6379")
+// 			if err != nil {
+// 				panic(err.Error())
+// 			}
+// 			return c, err
+// 		},
+// 	}
+// }
