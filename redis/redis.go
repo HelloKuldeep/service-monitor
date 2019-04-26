@@ -67,7 +67,8 @@ func (c *PoolConn) Add(key int, receiver int) error {
 		}
 		// fmt.Println(values[0], reflect.TypeOf(values[0]))
 		if s, err := strconv.ParseFloat(values[0], 64); err == nil {
-			if _, err := conn.Do("LREM", key, -1, s); err != nil {
+			// if _, err := conn.Do("LREM", key, -1, s); err != nil {
+			if _, err := conn.Do("DEL", key); err != nil {
 				return err
 			}
 			if _, err := conn.Do("LPUSH", key, math.Min(float64(receiver), s)); err != nil {
